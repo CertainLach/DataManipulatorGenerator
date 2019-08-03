@@ -1,12 +1,5 @@
 package flavor.pie.generator.data;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
-
-import javax.swing.*;
-import javax.swing.filechooser.FileFilter;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -18,6 +11,16 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import javax.swing.JFileChooser;
+import javax.swing.UIManager;
+import javax.swing.filechooser.FileFilter;
+
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+
+import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
 
 public class DataManipulatorGenerator {
     public static void main(String args[]) throws Exception {
@@ -601,15 +604,13 @@ public class DataManipulatorGenerator {
 
             //TypeTokens
             manipulator.fields.stream().map(f -> new AbstractMap.SimpleImmutableEntry<>(f.key.itemType, f.key.valueType)).distinct().forEach(f -> {
-                //class token
-                keys.printf("%sTypeToken<%s> %sToken = %s;%s", t2, f.getKey(), strip(f.getKey()), String.format(f.getKey().contains("<") ? "new TypeToken<%s>(){}" : "TypeToken.of(%s.class)", f.getKey()), n);
                 //value token
                 keys.printf("%sTypeToken<%s> %sToken = new TypeToken<%2$s>(){};%s", t2, f.getValue(), strip(f.getValue()), n);
             });
 
             //key assignmemnt
-            manipulator.fields.forEach(f -> keys.printf("%s%s = KeyFactory.make%sKey(%sToken, %sToken, DataQuery.of(%s\"%s\"), \"%s\", \"%s\");%s",
-                    t2, f.key.name, f.valueType.getKeyType(), strip(f.key.itemType), strip(f.key.valueType),
+            manipulator.fields.forEach(f -> keys.printf("%s%s = Key.builder().type(%sToken).query(DataQuery.of(%s\"%s\")).id(\"%s\").name(\"%s\").build();%s",
+                    t2, f.key.name, strip(f.key.valueType),
                     f.key.dataQuery.contains(".")? "'.', ": "", f.key.dataQuery, f.key.id, f.key.displayName, n));
 
             keys.printf("%s}%s}%2$s", t1, n);
@@ -629,23 +630,21 @@ public class DataManipulatorGenerator {
         return String.join("_", Arrays.stream(in.replaceAll("([a-z])([A-Z])", "$1.$2").split("[.]")).map(String::toUpperCase).collect(Collectors.toList()));
     }
     enum ValueType {
-        MAP("MapValue", "ImmutableMapValue", "Map"),
-        LIST("ListValue", "ImmutableListValue", "List"),
-        SET("SetValue", "ImmutableSetValue", "Set"),
-        OPTIONAL("OptionalValue", "ImmutableOptionalValue", "Optional"),
-        REGULAR("Value", "ImmutableValue", "Single");
+        MAP("MapValue", "ImmutableMapValue"),
+        LIST("ListValue", "ImmutableListValue"),
+        SET("SetValue", "ImmutableSetValue"),
+        OPTIONAL("OptionalValue", "ImmutableOptionalValue"),
+        REGULAR("Value", "ImmutableValue");
         String mutableName;
         String mutableType;
         String immutableName;
         String immutableType;
-        String keyType;
 
-        ValueType(String mutableName, String immutableName, String keyType) {
+        ValueType(String mutableName, String immutableName) {
             this.mutableName = mutableName;
             this.mutableType = "org.spongepowered.api.data.value.mutable." + mutableName;
             this.immutableName = immutableName;
             this.immutableType = "org.spongepowered.api.data.value.immutable." + immutableName;
-            this.keyType = keyType;
         }
 
         public String getMutableName() {
@@ -662,10 +661,6 @@ public class DataManipulatorGenerator {
 
         public String getImmutableType() {
             return immutableType;
-        }
-
-        public String getKeyType() {
-            return keyType;
         }
     }
 }
